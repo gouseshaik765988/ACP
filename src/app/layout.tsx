@@ -1,18 +1,13 @@
 
-import { Geist, Geist_Mono } from "next/font/google";
-import { Metadata } from "next";
-import "./globals.css";
+import "./globals.css";  // tailwind first
+import "bootstrap/dist/css/bootstrap.min.css"; // then bootstrap
+// import "bootstrap/dist/js/bootstrap.bundle.min.js";
 
-// Google fonts
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { type Metadata } from "next";
+import { ClerkProvider, } from "@clerk/nextjs";
+import ReduxProviderClient from "@/store/providers/ReduxProviderClient";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+
 
 // Metadata
 export const metadata: Metadata = {
@@ -24,26 +19,16 @@ export const metadata: Metadata = {
 };
 
 // Root layout
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="min-h-screen">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {/* <header className="bg-gray-200 p-4">
-          <h2>Header</h2>
-        </header> */}
-
-        <main className="flex-1">{children}</main>
-
-        {/* <footer className="bg-gray-200 p-4">
-          <h2>Footer</h2>
-        </footer> */}
-      </body>
-    </html>
+    <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+      <html lang="en" className="min-h-screen">
+        <body className=" text-black  " style={{ backgroundColor: "#f6fff6" }}>
+          <ReduxProviderClient>
+            {children}
+          </ReduxProviderClient>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

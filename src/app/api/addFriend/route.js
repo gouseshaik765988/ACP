@@ -3,6 +3,7 @@ import Userslist from "@/models/Userslist";
 
 export async function POST(req) {
     try {
+        // Connect inside function
         await connectMongo();
 
         const { loggeduser, friendUsername } = await req.json();
@@ -11,19 +12,17 @@ export async function POST(req) {
             return Response.json({ error: "Missing data" }, { status: 400 });
         }
 
-        // 🔹 Find the receiver (friend) — B
         const receiver = await Userslist.findOne({ username: friendUsername });
         if (!receiver) {
             return Response.json({ error: "Friend user not found" }, { status: 404 });
         }
 
-        // 🔹 Ensure B has a friendsList array (for safety)
-        if (!receiver.friendsList) receiver.friendsList = [];
+        receiver.friendsList = receiver.friendsList || [];
 
-        // 🔹 Check if A already exists in B’s friendsList
         const alreadyAdded = receiver.friendsList.some(
             (f) => f.username === loggeduser
         );
+
         if (alreadyAdded) {
             return Response.json(
                 { error: "Already requested or added" },
@@ -31,7 +30,6 @@ export async function POST(req) {
             );
         }
 
-        // 🔹 Add A to B’s friendsList
         receiver.friendsList.push({ username: loggeduser });
         await receiver.save();
 
@@ -39,7 +37,6 @@ export async function POST(req) {
             success: true,
             message: `✅ Friend request sent to ${friendUsername}`,
         });
-
 
     } catch (err) {
         console.error("❌ Error adding friend:", err);

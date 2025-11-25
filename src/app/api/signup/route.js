@@ -5,11 +5,11 @@ export async function POST(req) {
     try {
         await connectMongo();
 
-        const { firstName, lastName, age, username, password } = await req.json();
+        const { fname, lname, email, username, password } = await req.json();
 
-        const fullName = `${firstName} ${lastName}`;
 
-        // ✅ Check if username already exists
+        const fullName = `${fname} ${lname}`;
+
         const existingUser = await Userslist.findOne({ username });
         if (existingUser) {
             return Response.json(
@@ -18,15 +18,13 @@ export async function POST(req) {
             );
         }
 
-        // ✅ Create new user
         await Userslist.create({
-            firstName,
-            lastName,
-            age,
-            fullName,
+            fname,
+            lname,
+            email,
             username,
+            fullName,
             password,
-            friendsList: [], // optional: predefine empty friends array
         });
 
         return Response.json({
@@ -34,7 +32,7 @@ export async function POST(req) {
             message: `User ${fullName} created successfully!`,
         });
     } catch (error) {
-        console.error("❌ Signup Error:", error);
+        console.error("❌ Signup API Error:", error);
         return Response.json({ error: "Signup failed" }, { status: 500 });
     }
 }

@@ -1,13 +1,9 @@
 "use client";
-
-import "bootstrap/dist/css/bootstrap.min.css";
-import Dropdown from "react-bootstrap/Dropdown";
-import React, { Suspense, useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
-
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-
+import React, { useEffect, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
+import SendRoundedIcon from '@mui/icons-material/SendRounded';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { RootState } from '@/store/store';
 type Message = {
     sender: string;
     receiver: string;
@@ -15,162 +11,176 @@ type Message = {
     timestamp?: string;
 };
 
-function ChatPageContent() {
-    const searchParams = useSearchParams();
-    const loggeduser = searchParams.get("user");
-    const friend = searchParams.get("friend");
+// Removed dynamic/fetchCache exports as they apply to Next.js data fetching, not rendering logic.
 
+export default function ChatPageContent({ friendName: friend }: { friendName: string }) {
+    const user = useSelector((state: RootState) => state.user);
+    const loggeduser = user?.username ?? '';
     const [messages, setMessages] = useState<Message[]>([]);
-    const [newMessage, setNewMessage] = useState("");
+    const [text, setText] = useState('');
+    const [sending, setSending] = useState(false);
 
-    // ✅ Ref for auto-scroll
+    const inputRef = useRef<HTMLInputElement | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-    // ✅ Auto-scroll whenever messages update
-    useEffect(() => {
-        if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-        }
-    }, [messages]);
-
-    // ✅ Fetch messages
+    const chatContainerRef = useRef<HTMLDivElement | null>(null);
+    const [disable, setDisable] = useState(false);
+    // --------------------- FETCH MESSAGES ----------------------
     useEffect(() => {
         if (!loggeduser || !friend) return;
 
         const fetchMessages = async () => {
             try {
                 const res = await fetch(`/api/getMessage?user=${loggeduser}&friend=${friend}`, {
-                    cache: "no-store",
+                    cache: 'no-store',
                 });
-                if (!res.ok) throw new Error("Failed to fetch messages");
+                if (!res.ok) throw new Error('Fetch failed');
                 const data = await res.json();
                 setMessages(data.messages || []);
             } catch (err) {
-                console.error("Error fetching messages:", err);
+                console.error('Fetching error:', err);
             }
         };
 
         fetchMessages();
-        const interval = setInterval(fetchMessages, 1000);
+        const interval = setInterval(fetchMessages, 4000);
         return () => clearInterval(interval);
     }, [loggeduser, friend]);
 
-    // ✅ Send message
+    // ----------------------- SEND MESSAGE -----------------------
     const sendMessage = async () => {
-        if (!newMessage.trim()) return;
-
+        if (!text.trim() || sending) return;
+        setDisable(true);
+        setSending(true);
         try {
-            const res = await fetch("/api/sendMessage", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+            const res = await fetch('/api/sendMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     sender: loggeduser,
                     receiver: friend,
-                    content: newMessage,
+                    content: text,
                 }),
             });
 
             const data = await res.json();
             if (res.ok && data.success) {
-                setNewMessage("");
                 setMessages((prev) => [
                     ...prev,
-                    {
-                        sender: loggeduser!,
-                        receiver: friend!,
-                        content: newMessage,
-                        timestamp: new Date().toISOString(),
-                    },
+                    { sender: loggeduser, receiver: friend, content: text, timestamp: new Date().toISOString() },
                 ]);
-            } else {
-                alert(data.error || "Failed to send message");
+                setText('');
+                setDisable(false);
             }
         } catch (err) {
-            console.error("Error sending message:", err);
+            console.error('Send error:', err);
+            setDisable(false);
         }
+        setSending(false);
+        setDisable(false);
     };
 
+    // -------------------- SCROLL TO BOTTOM ----------------------
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
     return (
-        <div className="flex flex-col h-screen bg-gray-100">
-            {/* Header */}
-            <div className="bg-blue-600 text-white text-center py-3 shadow-md">
-                <h2>{friend}</h2>
-            </div>
+        <>
 
-            {/* Messages Section */}
-            <div className="flex-1 overflow-y-auto p-4">
-                {messages.length === 0 ? (
-                    <p className="text-center text-gray-500 mt-10">No messages yet</p>
-                ) : (
-                    messages.map((msg, index) => (
-                        <div
-                            key={index}
-                            className={`flex mb-2 ${msg.sender === loggeduser ? "justify-end" : "justify-start"
-                                }`}
-                        >
-                            <div
-                                className={`flex items-center gap-2 p-2 rounded-lg max-w-xs ${msg.sender === loggeduser
-                                    ? "bg-blue-500 text-white"
-                                    : "bg-gray-300 text-black"
-                                    }`}
-                            >
-                                {/* Message Text */}
-                                <span>{msg.content}</span>
+            <div className="d-flex flex-column h-100 bg-f0fdf0 text-f6fff6">
 
-                                {/* Dropdown beside message */}
-                                <Dropdown align={msg.sender === loggeduser ? "end" : "start"}>
-                                    <Dropdown.Toggle
-                                        variant="white"
-                                    >
+                <div className="d-flex align-items-center px-3 py-2 border-bottom shadow-sm" style={{ zIndex: 10, backgroundColor: '#f0fdf0' }}>
+                    <div
+                        className="rounded-circle d-flex align-items-center justify-content-center me-2"
+                        style={{ width: '40px', height: '40px', fontWeight: 700, border: '1px solid gray' }}
+                    >
+                        {friend[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                        <div className="fw-bold" style={{ fontSize: "18px" }}>{friend}</div>
+                        <small className="text-success fw-bold">Online</small>
+                    </div>
+                </div>
 
-                                    </Dropdown.Toggle>
-
-                                    <Dropdown.Menu>
-                                        <Dropdown.Item onClick={() => alert("Delete message")}>
-                                            Delete
-                                        </Dropdown.Item>
-                                        <Dropdown.Item onClick={() => alert("Forward message")}>
-                                            Forward
-                                        </Dropdown.Item>
-                                        <Dropdown.Item onClick={() => alert("Info")}>
-                                            Info
-                                        </Dropdown.Item>
-                                    </Dropdown.Menu>
-                                </Dropdown>
-                            </div>
+                <div ref={chatContainerRef} className="flex-grow-1 overflow-auto p-3" style={{ backgroundColor: '#f0fdf0' }}>
+                    {messages.length === 0 ? (
+                        <div className="text-center text-muted mt-3">
+                            <p>We believe that private communication should be just that—private. </p> <br></br>
+                            <p>A foundational quote often associated with secure messaging services emphasizing the importance of end-to-end encryption.</p>
                         </div>
-                    ))
-                )}
+                    ) : (
+                        messages.map((msg, index) => {
+                            const mine = msg.sender === loggeduser;
+                            return (
+                                <div
+                                    key={index}
+                                    className={`d-flex mb-2 ${mine ? 'justify-content-end' : 'justify-content-start'}`}
+                                >
+                                    <div
+                                        className="d-flex align-items-end rounded-3 px-2 py-1"
+                                        style={{
+                                            maxWidth: '75%',
+                                            backgroundColor: mine ? '#0d6efd' : '#e9ecef',
+                                            color: mine ? 'white' : 'black',
+                                        }}
+                                    >
+                                        <span style={{ fontSize: '18px', marginRight: '6px', wordBreak: 'break-word' }}>
+                                            {msg.content}
+                                        </span>
 
-                {/* Invisible div for auto-scroll */}
-                <div ref={messagesEndRef} />
+                                        <span style={{ fontSize: '10px', opacity: 0.7 }}>
+                                            {new Date(msg.timestamp || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* INPUT */}
+                <div className="d-flex align-items-center px-3 py-3   shadow-sm position-relative" style={{ backgroundColor: '#f0fdf0' }}>
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        placeholder="Type a message..."
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                        className="form-control"
+                        style={{
+
+                            color: 'black',
+
+                            borderRadius: '25px',
+                            padding: '12px 55px 12px 18px',
+                            fontSize: '20px',
+                            boxShadow: '0 0 5px rgba(0,0,0,0.3)',
+                        }}
+                    />
+
+                    <button
+                        disabled={disable}
+                        onClick={sendMessage}
+                        style={{
+                            position: 'absolute',
+                            right: '22px',
+                            background: 'lightgreen',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '45px',
+                            height: '45px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <SendRoundedIcon style={{ fontSize: '22px', color: 'black' }} />
+                    </button>
+                </div>
             </div>
 
-            {/* Input Box */}
-            <div className="flex items-center p-3 bg-white shadow-lg">
-                <input
-                    type="text"
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                    className="flex-1 border rounded-lg px-3 py-2 mr-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <button
-                    onClick={sendMessage}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                    Send
-                </button>
-            </div>
-        </div>
-    );
-}
-
-export default function ChatPage() {
-    return (
-        <Suspense fallback={<div className="p-4 text-center">Loading chat...</div>}>
-            <ChatPageContent />
-        </Suspense>
+        </>
     );
 }

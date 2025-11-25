@@ -1,25 +1,31 @@
-
-import type { NextRequest } from "next/server";
+// middleware.ts
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-    //     return NextResponse.redirect(new URL("/", request.url))
-    // }
-    // export const config = {
-    //     matcher: "/profile"
-    // }
-    //.................................................................................
-    // if (request.nextUrl.pathname === '/profileo') {
-    //     return NextResponse.redirect(new URL("/", request.nextUrl))
-    // } 
-    const Response = NextResponse.next();
-    const theeper = request.cookies.get('theme')
-    if (!theeper) {
-        Response.cookies.set("theme", 'dark')
+const isPublicRoute = createRouteMatcher([
+    "/signup(.*)",
+    "/(.*)",
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+    // allow public routes
+    if (isPublicRoute(req)) return NextResponse.next();
+
+    const session = await auth(); // 👈 await the Promise
+    const userId = session.userId; // now TypeScript knows this exists
+
+    // protect all other routes
+    if (!userId) {
+        return NextResponse.redirect(new URL("/", req.url));
     }
-    Response.headers.set('custom-header', 'customheader')
-    Response.headers.set('custom-header2', 'customheader')
 
+    return NextResponse.next();
+});
 
-    return Response
-}
+export const config = {
+    matcher: [
+        "/((?!.*\\..*|_next).*)",
+        "/",
+        "/(api|trpc)(.*)",
+    ],
+};

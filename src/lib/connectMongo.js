@@ -1,31 +1,40 @@
-
-
-
+// src/lib/connectMongo.js
 import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-    throw new Error("❌ Missing MONGODB_URI environment variable in Vercel settings!");
+    throw new Error(
+        "❌ Missing MONGODB_URI environment variable in Vercel settings!"
+    );
 }
 
-let isConnected = false; // global connection flag
+// Use global to cache connection across hot reloads
+if (!global._mongo) {
+    global._mongo = { conn: null, promise: null };
+}
 
-export default async function connectDB() {
-    if (isConnected) {
+async function connectMongo() {
+    if (global._mongo.conn) {
         console.log("✅ Using existing MongoDB connection");
-        return;
+        return global._mongo.conn;
     }
 
-    try {
-        const conn = await mongoose.connect(MONGODB_URI, {
-            dbName: "ACPDB", // your database name (optional, or include in URI)
+    if (!global._mongo.promise) {
+        const opts = {
+            dbName: "DEMO", // optional DB name
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        };
+
+        global._mongo.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
+            console.log("✅ MongoDB Connected Successfully:", m.connection.host);
+            return m;
         });
-
-        isConnected = true;
-        console.log("✅ MongoDB Connected Successfully:", conn.connection.host);
-    } catch (err) {
-        console.error("❌ MongoDB Connection Error:", err);
-        throw err;
     }
+
+    global._mongo.conn = await global._mongo.promise;
+    return global._mongo.conn;
 }
+
+export default connectMongo;

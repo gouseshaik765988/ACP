@@ -1,19 +1,5 @@
-import mongoose from "mongoose";
 import connectDB from "@/lib/connectMongo";
-
-const getMessageModel = (chatId) => {
-    const schema = new mongoose.Schema(
-        {
-            sender: { type: String, required: true },
-            receiver: { type: String, required: true },
-            content: { type: String, required: true },
-            timestamp: { type: Date, default: Date.now },
-        },
-        { collection: chatId } // ✅ force to use the same collection name
-    );
-
-    return mongoose.models[chatId] || mongoose.model(chatId, schema);
-};
+import Userslist from "@/models/Userslist";
 
 export async function GET(req) {
     try {
@@ -27,12 +13,26 @@ export async function GET(req) {
             return Response.json({ error: "Missing users" }, { status: 400 });
         }
 
-        // ✅ Must use sorted combination (same as sendMessage)
-        const chatId = [user, friend].sort().join("_") + "_messages";
-        const Message = getMessageModel(chatId);
+        // ✅ Find the requesting user's document
+        const userData = await Userslist.findOne({ username: user });
 
-        // ✅ Fetch all messages for this chat
-        const messages = await Message.find({}).sort({ timestamp: 1 });
+        if (!userData) {
+            return Response.json({ error: "User not found" }, { status: 404 });
+        }
+
+        // ✅ Find the chat object for the friend
+        const chat = userData.chatdata.find(
+            (chat) => chat.friend === friend
+        );
+
+        if (!chat) {
+            return Response.json({ messages: [] }, { status: 200 }); // no chat yet
+        }
+
+        // ✅ Sort messages by timestamp (ascending)
+        const messages = chat.messages.sort(
+            (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+        );
 
         return Response.json({ messages }, { status: 200 });
     } catch (err) {

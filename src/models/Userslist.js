@@ -13,13 +13,19 @@ const chatSchema = new mongoose.Schema({
     messages: [messageSchema], // ✅ messages stored inside chat
 });
 
+
 const userslistSchema = new mongoose.Schema({
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    age: { type: Number, required: true },
+    fname: { type: String, required: true },
+    lname: { type: String, required: true },
+    email: { type: String, required: true },
     fullName: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+
+    profilePic: {
+        type: String,   // Secure URL from Cloudinary
+        default: "https://res.cloudinary.com/dx6h8z8nz/image/upload/v1763136229/samples/zoom.avif",    // Empty until user uploads
+    },
 
     friendsList: [
         {
@@ -33,9 +39,18 @@ const userslistSchema = new mongoose.Schema({
             username: String,
             addedAt: { type: Date, default: Date.now },
         },
+
+
     ],
 
     chatdata: [chatSchema], // ✅ embed chat with messages
+
+    chatList: [
+        {
+            username: String,
+            addedAt: { type: Date, default: Date.now },
+        },
+    ],
 });
 
 export default mongoose.models.Userslist ||
