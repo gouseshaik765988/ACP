@@ -6,11 +6,14 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import Spinner from 'react-bootstrap/Spinner';
 import { useSignUp } from "@clerk/nextjs";
 import { TextField, Button, Typography, Card, CardContent, Box } from "@mui/material";
+import { useClerk } from "@clerk/nextjs";
+import { useDispatch } from "react-redux";
+import { clearUser } from "@/store/userSlice";
 
 export default function SignupPage() {
     const { isLoaded, signUp } = useSignUp();
     const router = useRouter();
-
+    const { signOut } = useClerk();
     const [code, setCode] = useState("");
     const [page, setStep] = useState<"signup" | "verify">("signup");
     const [disable, setDisable] = useState(false);
@@ -21,12 +24,21 @@ export default function SignupPage() {
         email: "",
         password: "",
     });
-
+    const dispatch = useDispatch();
     const [message, setMessage] = useState("");
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
+
+
+    const handleSignOut = async () => {
+        // Close the menu
+        dispatch(clearUser()); // Clear the Redux state first
+        await signOut({ redirectUrl: "/" }); // Programmatically sign out via Clerk
+    };
+
+
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -42,6 +54,7 @@ export default function SignupPage() {
             });
 
             await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+            setDisable(false);
             setStep("verify");
         } catch (err: unknown) {
             if (err && typeof err === "object" && "errors" in err) {
@@ -58,7 +71,7 @@ export default function SignupPage() {
     const handleVerify = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!isLoaded) return;
-
+        setDisable(true);
         try {
             const complete = await signUp.attemptEmailAddressVerification({ code });
 
@@ -70,12 +83,14 @@ export default function SignupPage() {
                 });
 
                 const data = await res.json();
+                handleSignOut();
+                router.push(`/`);
                 if (!res.ok) {
                     setMessage(data.error || "Database error");
                     return;
                 }
 
-                router.push(`/home?username=${encodeURIComponent(form.username)}`);
+
             } else {
                 setMessage("Verification failed. Try again.");
             }
@@ -146,9 +161,15 @@ export default function SignupPage() {
                             sx={textFieldStyles}
                         />
 
-                        <Button type="submit" fullWidth variant="contained" className="mt-3"
-                            style={{ padding: "10px", height: "40px", fontSize: "1.1rem", fontWeight: "bold" }}>
-                            Submit
+                        <Button type="submit" fullWidth variant="contained" className="mt-3" disabled={disable}
+                            style={{ padding: "10px", height: "40px", fontSize: "1.1rem", fontWeight: "bold", }}>
+                            {disable ? <Spinner
+                                as="span"
+                                animation="border"
+                                size="sm"
+                                role="status"
+                                aria-hidden="true"
+                            /> : "Verify Email"}
                         </Button>
                     </form>
 

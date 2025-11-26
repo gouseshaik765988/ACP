@@ -25,6 +25,7 @@ import {
 import NoRequestsPage from "../component/blankcrequest";
 
 interface User {
+
     _id?: string;       // 👈 add this
     username?: string;
     fname?: string;
@@ -34,6 +35,7 @@ interface User {
     isFriend?: boolean;
 }
 interface Friend {
+
     _id: string;
     username: string;
     fname: string,
@@ -62,6 +64,8 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
     const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
     const router = useRouter();
     const [reqdesable, setReqdesable] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
@@ -90,6 +94,10 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
         };
 
         fetchChatList();
+        const interval = setInterval(fetchChatList, 1000);
+
+        // Cleanup
+        return () => clearInterval(interval);
     }, [user]);
 
 
@@ -123,7 +131,6 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
 
                 const filtered = usersData.filter((u: User) => u.username !== loggeduser);
 
-                // ✅ Use freshly fetched friends array to mark isFriend
                 const updatedUsers = filtered.map((u: User) => ({
                     ...u,
                     isFriend: fetchedFriends.some(
@@ -133,6 +140,7 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
 
                 setUsers(updatedUsers);
                 setAllUsers(updatedUsers);
+
             } catch (err) {
                 console.error("Error fetching data:", err);
             } finally {
@@ -140,8 +148,17 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
             }
         };
 
+        // Fetch immediately
         fetchData();
+
+        // Fetch every second
+        const interval = setInterval(fetchData, 1000);
+
+        // Cleanup to avoid memory leaks
+        return () => clearInterval(interval);
+
     }, [loggeduser]);
+
 
 
     // -------------------- HANDLERS --------------------
@@ -383,28 +400,28 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
                         transition: "transform 0.1s ease-out, background-color 0.2s ease",
                         transform: "scale(1)",
                         color: "gray",
-
+                        // Ensure base color is consistent before selection
+                        backgroundColor: '#f0fdf0'
                     },
 
                     "& .MuiTab-root:hover": {
                         backgroundColor: "#b5f2c5ff",
                         transform: "scale(0.95)",
-
                     },
-
 
                     "& .MuiTab-root:active": {
                         transform: "scale(0.90)",
                     },
 
-                    "& .Mui-selected": {
+                    // --- UPDATED SELECTED STYLES ---
+                    "& .MuiTab-root.Mui-selected": {
                         color: "black !important",
-                        backgroundColor: "#46ec72ff",
+                        // This ensures the selected tab is the bright green #46ec72ff
+                        backgroundColor: "#46ec72ff !important",
                         fontWeight: "bold !important",
                         transform: "scale(1.08)",
-
-
                     },
+                    // ------------------------------
 
                     "& .MuiTabs-indicator": {
                         display: "none",
@@ -413,25 +430,18 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
             >
 
                 <Tab label="Chats" sx={{
-                    transform: "smooth",
-                    fontWeight: "bold !important",
+                    // Remove specific background color here, let the main `Tabs` styles manage it
                     border: "solid 1px gray",
                     margin: "10px",
                     textTransform: "none",
-                    backgroundColor: '#f0fdf0'
-
                 }} />
+
                 <Tab label="Search" sx={{
-                    transform: "smooth",
-                    fontWeight: "bold !important",
+                    // Remove specific background color here
                     border: "solid 1px gray",
                     margin: "10px",
                     textTransform: "none",
-                    backgroundColor: '#f0fdf0'
-
                 }} />
-
-
 
                 <Tab
                     label={
@@ -444,16 +454,15 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
                         </Badge>
                     }
                     sx={{
-
-                        transform: "smooth",
+                        // Remove specific background color here
                         border: "solid 1px gray",
-                        fontWeight: "bold !important",
                         margin: "10px",
                         textTransform: "none"
                     }}
                 />
 
             </Tabs>
+
 
             <hr className="mb-0 mt-0"></hr>
             {/* ------------------- CONTENT ------------------- */}
@@ -485,19 +494,32 @@ export default function HomePageContent({ onFriendSelect }: HomePageContentProps
                                     {[...chatlist].reverse().map((friend, idx) => (
                                         <li
                                             key={idx}
-                                            className="d-flex align-items-center justify-content-between p-1"
+                                            className="d-flex align-items-center justify-content-between mt-1 p-1"
                                             style={{
                                                 cursor: "pointer",
                                                 transition: "background-color 0.2s",
                                                 borderRadius: "10px",
-                                                // Check if the current item index matches the hovered index
-                                                backgroundColor: hoveredIndex === idx ? '#9ce9b2ff' : '#f0fdf0',
+
+                                                // 🎨 Background color logic
+                                                backgroundColor:
+                                                    selectedIndex === idx
+                                                        ? "#9ce9b2ff" // Selected (green)
+                                                        : hoveredIndex === idx
+                                                            ? "#9ce9b2ff" // Hover (green)
+                                                            : "#f0fdf0",  // Default
                                             }}
-                                            onClick={() => handleMessage(friend.username)}
-                                            // Add event handlers to update the hovered index state
+
+                                            // Update selected index on click
+                                            onClick={() => {
+                                                setSelectedIndex(idx);
+                                                handleMessage(friend.username);
+                                            }}
+
+                                            // Hover events
                                             onMouseEnter={() => setHoveredIndex(idx)}
                                             onMouseLeave={() => setHoveredIndex(null)}
                                         >
+
                                             {/* Profile Image */}
                                             <div className="me-3">
                                                 <Avatar

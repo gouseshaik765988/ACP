@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { TextField, Button, Box, Typography, Card, CardContent } from "@mui/material";
 import Spinner from 'react-bootstrap/Spinner';
-import { SignIn, SignInButton } from "@clerk/nextjs";
+
 // Icons for background
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
@@ -30,11 +30,12 @@ export default function LoginPage() {
     const [disable, setDisable] = useState(false);
 
     // 👉 If already logged in redirect to /home
-    useEffect(() => {
-        if (isSignedIn) router.push("/home");
-    }, [isSignedIn, router]);
 
-    // Submit Handler
+    useEffect(() => {
+        if (!isLoaded) return;   // wait for Clerk
+        if (isSignedIn) router.replace("/home");  // no flicker, no loop
+    }, [isLoaded, isSignedIn, router]);
+
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         // ... (handleSubmit logic remains the same) ...
